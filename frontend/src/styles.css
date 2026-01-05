@@ -1,0 +1,166 @@
+.menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.menu h1 {
+  font-size: 48px;
+  margin-bottom: 30px;
+}
+
+.menu input {
+  padding: 15px;
+  font-size: 18px;
+  border: none;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  width: 300px;
+}
+
+.menu button {
+  padding: 15px 40px;
+  font-size: 18px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.menu button:hover {
+  background: #45a049;
+}
+
+.hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  color: white;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.hud-top {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff0000;
+}
+
+.status-dot.connected {
+  background: #00ff00;
+}
+
+.hud-bottom {
+  position: absolute;
+  bottom: 30px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-bar {
+  width: 200px;
+  height: 20px;
+  background: rgba(255, 0, 0, 0.3);
+  border: 2px solid white;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0000, #00ff00);
+  transition: width 0.3s;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-over {
+  background: rgba(0, 0, 0, 0.9);
+  padding: 50px;
+  border-radius: 10px;
+  text-align: center;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.game-over h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  color: #ff0000;
+}
+
+.game-over p {
+  font-size: 24px;
+  margin-bottom: 30px;
+}
+
+.game-over button {
+  padding: 15px 40px;
+  font-size: 18px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.game-over button:hover {
+  background: #45a049;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  cursor: none;
+}
+
+* {
+  box-sizing: border-box;
+}
