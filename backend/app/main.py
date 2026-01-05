@@ -1,10 +1,23 @@
-from app import app, socket_app
+from app import app, socket_app, sio
 from app.database.db import engine, Base
-import app.routes.websocket  # IMPORTANT: side-effect import
-import uvicorn
+import app.routes.websocket  # register socket events
+from app.routes.http import router as player_router
+from app.game.game_loop import game_loop
+import asyncio
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+app.include_router(player_router)
+
+@app.on_event("startup")
+async def startup():
+    Base.metadata.create_all(bind=engine)
+
+    # Start server-authoritative game loop
+    async def broadcast(state):
+        await sio.emit("gameState", state)
+
+    # Schedule the game loop
+    asyncio.create_task(game_loop(broadcast))
+
 
 @app.get("/")
 async def root():
@@ -13,11 +26,3 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "app.main:socket_app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
