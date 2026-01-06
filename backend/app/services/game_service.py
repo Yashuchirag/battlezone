@@ -1,101 +1,112 @@
 from typing import Dict, Any
+from sqlalchemy.orm import Session
+from app.database.db import SessionLocal
+from app.models.player import Player
 import time
-
-# NO database imports here (important)
-
-MAX_HEALTH = 100
-RESPAWN_HEALTH = 100
-MAX_SPEED = 8.0  # units/sec
 
 
 class GameService:
     def __init__(self):
         self.active_players: Dict[str, Dict[str, Any]] = {}
+        self.game_state = {
+            "enemies": [],
+            "powerups": []
+        }
 
-    # -------------------------------
-    # Player lifecycle
-    # -------------------------------
-    def player_connected(self, sid: str, name: str):
+    async def player_connected(self, sid: str, name: str):
         self.active_players[sid] = {
-            "sid": sid,
+            "id": sid,
             "name": name,
-            "position": {"x": 0.0, "y": 1.6, "z": 0.0},
-            "velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "rotation": 0.0,
-            "health": MAX_HEALTH,
+            "position": [0, 1.6, 0],
+            "rotation": 0,
+            "health": 100,
             "score": 0,
-            "connected_at": time.time(),
+            "connected_at": time.time()
         }
 
-    def player_disconnected(self, sid: str):
-        self.active_players.pop(sid, None)
+        db = SessionLocal()
+        try:
+            player = db.query(Player).filter(Player.name == name).first()
+            if not player:
+                db.add(Player(name=name))
+                db.commit()
+        finally:
+            db.close()
 
-    # -------------------------------
-    # Input processing (SAFE)
-    # -------------------------------
-    def apply_input(self, sid: str, input_data: Dict[str, Any]):
-        """
-        input_data example:
-        {
-            "moveX": -1,
-            "moveZ": 1,
-            "rotation": 90
-        }
-        """
-        player = self.active_players.get(sid)
-        if not player:
+    async def player_disconnected(self, sid: str):
+        if sid not in self.active_players:
             return
 
-        move_x = float(input_data.get("moveX", 0))
-        move_z = float(input_data.get("moveZ", 0))
+        player_data = self.active_players[sid]
 
-        # Clamp input to prevent speed hacks
-        move_x = max(-1, min(1, move_x))
-        move_z = max(-1, min(1, move_z))
+        db = SessionLocal()
+        try:
+            player = db.query(Player).filter(
+                Player.name == player_data["name"]
+            ).first()
 
-        player["velocity"]["x"] = move_x * MAX_SPEED
-        player["velocity"]["z"] = move_z * MAX_SPEED
-        player["rotation"] = float(input_data.get("rotation", player["rotation"]))
+            if player:
+                session_time = time.time() - player_data["connected_at"]
+                player.play_time += session_time
+                player.score += player_data["score"]
+                db.commit()
+        finally:
+            db.close()
 
-    # -------------------------------
-    # Server tick update
-    # -------------------------------
-    def update(self, delta_time: float):
-        for player in self.active_players.values():
-            player["position"]["x"] += player["velocity"]["x"] * delta_time
-            player["position"]["z"] += player["velocity"]["z"] * delta_time
+        del self.active_players[sid]
 
-    # -------------------------------
-    # Hit processing (SERVER AUTH)
-    # -------------------------------
-    def process_hit(self, shooter_sid: str, target_sid: str) -> bool:
-        shooter = self.active_players.get(shooter_sid)
-        target = self.active_players.get(target_sid)
+    async def update_player_position(self, sid: str, data: Dict[str, Any]):
+        if sid in self.active_players:
+            self.active_players[sid]["position"] = data["position"]
+            self.active_players[sid]["rotation"] = data["rotation"]
 
-        if not shooter or not target:
-            return False
+    async def process_hit(self, shooter_sid: str, data: Dict[str, Any]):
+        target_sid = data.get("targetId")
 
-        # Server decides damage
-        DAMAGE = 25
-        target["health"] -= DAMAGE
+        if target_sid not in self.active_players:
+            return {"killed": False}
 
-        if target["health"] <= 0:
-            shooter["score"] += 100
-            target["health"] = RESPAWN_HEALTH
-            return True
+        target = self.active_players[target_sid]
+        target["health"] -= data.get("damage", 10)
 
-        return False
+        if target["health"] > 0:
+            return {"killed": False}
 
-    # -------------------------------
-    # State snapshot
-    # -------------------------------
-    def get_state(self):
+        # Kill confirmed
+        target["health"] = 100
+        self.active_players[shooter_sid]["score"] += 100
+
+        db = SessionLocal()
+        try:
+            shooter = db.query(Player).filter(
+                Player.name == self.active_players[shooter_sid]["name"]
+            ).first()
+            victim = db.query(Player).filter(
+                Player.name == target["name"]
+            ).first()
+
+            if shooter:
+                shooter.kills += 1
+            if victim:
+                victim.deaths += 1
+
+            db.commit()
+        finally:
+            db.close()
+
         return {
-            sid: {
-                "position": p["position"],
-                "rotation": p["rotation"],
-                "health": p["health"],
-                "score": p["score"],
-            }
-            for sid, p in self.active_players.items()
+            "killed": True,
+            "shooter": shooter_sid,
+            "target": target_sid
         }
+
+    def get_game_state(self):
+        return {
+            "players": self.active_players,
+            "enemies": self.game_state["enemies"],
+            "powerups": self.game_state["powerups"]
+        }
+
+
+# ✅ THIS LINE WAS MISSING
+game_service = GameService()
