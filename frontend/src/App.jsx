@@ -20,10 +20,12 @@ export default function App() {
                     placeholder="Enter your name"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && startGame()}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            startGame()
+                        }
+                    }}
                 />
-
-                
                 <button onClick={startGame}>Start Game</button>
             </div>
         );

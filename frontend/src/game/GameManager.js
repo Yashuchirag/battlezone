@@ -36,6 +36,8 @@ export default class GameManager {
         kills: 0
       };
 
+      this.hasDied = false;
+
       this.setupEventListeners();
       this.spawnEnemies(5);
     }
@@ -81,6 +83,10 @@ export default class GameManager {
           this.enemies = this.enemies.filter(e => e !== hitEnemy);
           this.state.score += 10;
           this.state.kills++;
+
+          if (socket) {
+            socket.emit('statsUpdate', { kills: 1, score: 10 });
+          }
           
           if (this.enemies.length < 5) {
             this.spawnEnemies(1);
@@ -157,6 +163,13 @@ export default class GameManager {
         if (enemy.mesh.position.distanceTo(this.camera.position) < 1.5) {
           this.state.health = Math.max(0, this.state.health - 0.5);
           this.updateState();
+
+          if (this.state.health === 0 && !this.hasDied) {
+            this.hasDied = true;
+            if (socket) {
+              socket.emit('statsUpdate', { deaths: 1 });
+            }
+          }
         }
       });
 

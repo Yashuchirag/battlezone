@@ -1,6 +1,7 @@
 from app import sio
 from app.services.game_service import game_service
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +40,66 @@ async def playerInput(sid, input_data):
 
 
 @sio.event
-async def playerShot(sid):
+async def playerMoved(sid, data):
+    await game_service.update_player_position(sid, data)
+    await sio.emit(
+        "playerMoved",
+        {
+            "id": sid,
+            "position": data.get("position"),
+            "rotation": data.get("rotation")
+        },
+        skip_sid=sid,
+    )
+
+
+@sio.event
+async def statsUpdate(sid, data):
+    if sid not in game_service.active_players:
+        return
+
+    name = game_service.active_players[sid]["name"]
+
+    kills = max(0, int(data.get("kills", 0) or 0))
+    deaths = max(0, int(data.get("deaths", 0) or 0))
+    score = max(0, int(data.get("score", 0) or 0))
+
+    await asyncio.to_thread(
+        game_service._update_player_stats,
+        name,
+        kills=kills,
+        deaths=deaths,
+        score=score,
+    )
+
+
+@sio.event
+async def playerShot(sid, data=None):
+    await sio.emit(
+        "playerShot",
+        {
+            "id": sid,
+            "position": (data or {}).get("position"),
+            "direction": (data or {}).get("direction"),
+        },
+        skip_sid=sid,
+    )
+
     for target_sid in list(game_service.active_players.keys()):
         if target_sid == sid:
             continue
 
         killed = await game_service.process_hit(sid, target_sid)
         if killed:
+            shooter_name = game_service.active_players.get(sid, {}).get("name")
+            victim_name = game_service.active_players.get(target_sid, {}).get("name")
+
+            if shooter_name and victim_name:
+                await sio.emit(
+                    "killFeed",
+                    {"shooter": shooter_name, "victim": victim_name}
+                )
+
             await sio.emit(
                 "playerHit",
                 {"killed": True, "shooter": sid, "target": target_sid}
